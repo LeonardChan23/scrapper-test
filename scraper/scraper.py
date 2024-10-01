@@ -1,8 +1,9 @@
 import requests
 import time
 import argparse
+import re
 from datetime import datetime
-
+from xml.etree import ElementTree as ET
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,7 +12,6 @@ from urllib.parse import urljoin
 # from transformers import pipeline
 from pymongo import MongoClient
 
-driver = webdriver.ChromiumEdge()
 
 # 连接到 MongoDB
 client = MongoClient('mongodb://localhost:27017/')  
@@ -19,9 +19,10 @@ db = client['scraper_post']
 # 创建集合
 collection = db['scraper_post'] 
 
-def fetch_blog_posts(url, site):
+def fetch_protocol_posts(url, site):
     try:
         #查询数据中最新的时间
+        driver = webdriver.Chrome()
         max_time_doc = collection.find_one(
             {'source': 'protocol.ai'},  # 查询条件
             sort=[('time', -1)]  # 按 time 字段降序排序
@@ -171,7 +172,99 @@ def fetch_blog_posts(url, site):
 
     except requests.exceptions.RequestException as e:
         print(f'Error fetching the blog posts: {e}')
+
+def fetch_ethereum_posts(url):
+    max_time_doc = collection.find_one(
+        {'source': 'Ethereum'},  # 查询条件
+        sort=[('time', -1)]  # 按 time 字段降序排序
+    )
+
+    sitemapUrl = 'https://blog.ethereum.org/sitemap-0.xml'
+    XmlResponse = requests.get(sitemapUrl)
+    XmlResponse.raise_for_status() 
+    siteXml = XmlResponse.text
+    root = ET.fromstring(siteXml)
+    namespaces = {}
+    for elem in root.findall('.//*'):
+        if '}' in elem.tag:
+            ns = elem.tag.split('}')[0].strip('{')
+            namespaces[ns] = ns  # 将命名空间添加到字典中
+    loc_links = []
+    # 查找 loc 元素，使用提取的命名空间
+    for blogUrl in root.findall('.//{*}loc'):
+        loc_text = blogUrl.text
+        if loc_text and loc_text.startswith('https://blog.ethereum.org/'):
+            parts = loc_text.split('/')
+            if len(parts) > 3:  # 确保有足够的部分
+                year_str = parts[3]  # 获取紧跟在基础 URL 后的部分
+                if len(year_str) == 4 and year_str.isdigit():  # 检查是否为年份
+                    loc_links.append(loc_text)
+    loc_links.sort(reverse=True)
+    # with open ('output.txt','w') as f:
+    #     for item in loc_links:
+    #         f.write(item+'\n')
+    count = 0
+    for link in loc_links:
+        responsePost = requests.get(link)
+        responsePost.raise_for_status()  # 检查请求是否成功
+        # print(responsePost.text)
+        # with open ('output.txt','w') as f:
+        #     f.write(responsePost.text)
+
+        # 解析 HTML 页面
+        soupPost = BeautifulSoup(responsePost.text, 'html.parser')
+        singlePost = soupPost.find('main')
+
+        title = singlePost.find('h1').text  # 标题在 <h1> 标签中
+        title = title.replace("\\n", "").replace("\\t", "").replace("\\\\", "").strip()
+        
+        timeAndAuthor = singlePost.find ('h2', class_="chakra-text").text #作者和时间在 <h2> 标签中
+        timeAndAuthor = timeAndAuthor.replace("\\n", "").replace("\\t", "").replace("\\\\", "").strip()
+        pattern = r"Posted by (.+?) on ([A-Za-z]+ \d{1,2}, \d{4})"
+
+        # 使用正则表达式搜索
+        match = re.search(pattern, timeAndAuthor)
+        
+        if match:
+            author = match.group(1)  # 提取作者
+            date =  datetime.strptime(match.group(2),"%B %d, %Y")     # 提取日期
+        else:
+            author = "No Author"
+            date = None
+        
+        if max_time_doc:
+                max_time = max_time_doc['time']  # 提取最大 time 值
+                if max_time >= date:
+                    break
+
+        image = singlePost.find('img', attrs={'data-nimg':'intrinsic'})['src']
+        image = urljoin(url,image)
+
+        category = singlePost.find(attrs={'id':'category'}).text
+
+        content = singlePost.find('article').get_text(separator=' ')
+
+        postInfo = {
+            'title':title,
+            'author':author,
+            'time': date,
+            'link': link,
+            'category': category,
+            'image': image,
+            'source': 'Ethereum'
+        }
+        postInfo['summray'] = get_blog_summary(content) 
+        collection.insert_one(postInfo)
+        print(postInfo)
+        #测试专用 只爬十篇文章
+        count += 1
+        if count == 10:
+            break
+
+def fetch_coinbase_posts(url):
     
+    return True
+
 def get_blog_summary(content):
     if args.model == 'NLP':
         # 对文章内容进行编码
@@ -192,10 +285,11 @@ def get_blog_summary(content):
         )
         return completion.choices[0].message.content
 
-
 if __name__ == '__main__':
-    baseUrl = 'https://protocol.ai'
-    blogSite = '/blog'
+    protocolUrl = 'https://protocol.ai'
+    protocolSite = '/blog'
+    ethereumUrl = 'https://blog.ethereum.org/'
+    coinbaseUrl = 'https://www.coinbase.com/blog/landing'
     parser = argparse.ArgumentParser(description="Choose AI model type")
     
     # 添加 --model 参数，指定类型为字符串
@@ -220,6 +314,7 @@ if __name__ == '__main__':
         print('Please set AI model type!')
         exit 
 
-    fetch_blog_posts(baseUrl,blogSite)
-    driver.quit()
+    # fetch_protocol_posts(protocolUrl,protocolSite)
+    fetch_ethereum_posts(ethereumUrl)
+    fetch_coinbase_posts(coinbaseUrl)
 

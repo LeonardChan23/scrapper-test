@@ -7,14 +7,14 @@ const { DateTime } = require('graphql-scalars');
 const { exec } = require('child_process');
 
 // 定义要执行的 Bash 脚本路径
-const scriptPath = '../scraper.py';
+const scriptPath = '../scraper/scraper.py';
 
 // 获取命令行参数（跳过前两个参数）
 const args = process.argv.slice(2);
 
 // 检查是否提供参数
 if (args.length === 0) {
-    console.error("请提供参数。");
+    console.error("Provide Args");
     process.exit(1);
 }
 
@@ -96,10 +96,10 @@ async function startServer() {
     // GraphQL 解析器
     const resolvers = {
         Query: {
-            items: async (_, { sort,filter }, { Item }) => {
+            items: async (_, { sort, filter }, { Item }) => {
                 const query = {};
-                if(filter){
-                    query.source = filter
+                if(filter && filter !== 'All'){
+                    query.source = { $regex: filter, $options: 'i' }
                 }
                 const sortOptions = {};
                 if (sort) {

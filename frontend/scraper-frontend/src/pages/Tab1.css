@@ -1,0 +1,99 @@
+/* 限制网页端最大宽度为1024px */
+@media (min-width: 768px) {
+    .container {
+        max-width: 1024px;
+        margin: 0 auto;
+        /* 居中 */
+        padding: 0 16px;
+        /* 内边距 */
+    }
+}
+
+/* 卡片图像样式 */
+.card-image {
+    max-height: 200px;
+    /* 设置最大高度 */
+    width: 100%;
+    /* 宽度100%以适应卡片 */
+    object-fit: cover;
+    /* 保持填充并裁剪 */
+    object-position: center;
+    /* 图片居中裁剪 */
+    overflow: hidden;
+    transition: transform 0.3s;
+    /* 添加平滑过渡效果 */
+}
+
+/* 鼠标悬停时放大图片 */
+.card-image:hover {
+    transform: scale(1.1);
+    /* 放大1.1倍 */
+}
+
+/* 摘要样式 */
+.summary {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    /* 限制显示3行 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 省略超出部分 */
+}
+
+/* 限制网页端最大宽度为1024px */
+@media (min-width: 768px) {
+    .container {
+      max-width: 1400px; /* 设置最大宽度为800px */
+      margin: 0 auto; /* 居中 */
+      padding: 0 16px; /* 内边距 */
+    }
+  }
+
+/* 卡片图像样式 */
+.card-image {
+    width: 100%;
+    /* 宽度100%以适应卡片 */
+    height: 200px;
+    /* 设置固定高度为200px */
+    object-fit: cover;
+    /* 保持填充并裁剪 */
+    object-position: center;
+    /* 居中裁剪 */
+    transition: transform 0.3s;
+    /* 添加平滑过渡效果 */
+}
+
+/* 鼠标悬停时放大图片 */
+.card-image:hover {
+    transform: scale(1.1);
+    /* 放大1.1倍 */
+}
+
+/* 摘要样式 */
+.card-content {
+    display: flex;
+    flex-direction: column;
+    /* 内容下对齐 */
+    height: 100%;
+    /* 使内容填充完整卡片 */
+}
+
+.summary {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    /* 限制显示3行 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+
+    transition: max-height 0.3s ease; /* 添加平滑过渡效果 */
+    /* 省略超出部分 */
+}
+
+.card-content:hover .summary {
+    display: block; /* 确保内容显示 */
+    max-height: 1000px;
+    overflow:visible; /* 允许高度扩展以显示完整内容 */
+  }

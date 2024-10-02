@@ -256,7 +256,7 @@ def fetch_ethereum_posts(url):
             'image': image,
             'source': 'Ethereum'
         }
-        postInfo['summray'] = get_blog_summary(content) 
+        postInfo['summary'] = get_blog_summary(content) 
         collection.insert_one(postInfo)
         print(postInfo)
         #测试专用 只爬十篇文章
@@ -365,13 +365,13 @@ def fetch_coinbase_posts(url):
                 max_time = max_time_doc['time']  # 提取最大 time 值
                 if max_time >= dateObj:
                     break
-            image_element = driver.find_elements(By.CSS_SELECTOR,"img")[1]
+            image_element = driver.find_elements(By.CSS_SELECTOR,"img")[2]
             image = image_element.get_attribute('src')
 
             postInfo = {
                 'title':title,
                 'author':author,
-                'time': date,
+                'time': dateObj,
                 'link': link_target,
                 'category': category,
                 'image': image,
@@ -462,14 +462,14 @@ if __name__ == '__main__':
         from openai import OpenAI
             #使用Moonshot大模型 提供apikey和密钥 可以更换为任意openai相容的模型
         client = OpenAI(
-            api_key="sk-WlVaUY5r7rplD0XmJIACyDlmOTZObb81OaSMDCAC9kv0xzju", # 在这里将 MOONSHOT_API_KEY 替换为你从 Kimi 开放平台申请的 API Key
+            api_key=args.apikey, # 在这里将 MOONSHOT_API_KEY 替换为你从 Kimi 开放平台申请的 API Key
             base_url="https://api.moonshot.cn/v1",
         )   
     else:
         print('Please set AI model type!')
         exit 
 
-    fetch_protocol_posts(protocolUrl,protocolSite)
-    fetch_ethereum_posts(ethereumUrl)
+    #fetch_protocol_posts(protocolUrl,protocolSite)
+    #fetch_ethereum_posts(ethereumUrl)
     fetch_coinbase_posts(coinbaseUrl)
 

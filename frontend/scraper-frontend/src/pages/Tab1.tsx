@@ -23,6 +23,17 @@ const formatDateTime = (dateString: string) => {
     return date.toLocaleDateString(); // 只保留日期
 };
 
+// interface Item {
+//     title: string;
+//     author: string;
+//     time: string;
+//     link: string;
+//     image: string;
+//     source: string;
+//     summary: string;
+// }
+
+
 const Tab1: React.FC = () => {
     const [sort, setSort] = useState<string>('ASC'); // 默认排序为升序
     const [filter, setFilter] = useState<string>('All'); // 默认过滤为所有
@@ -40,6 +51,12 @@ const Tab1: React.FC = () => {
         setSort(event.detail.value);
     };
 
+    // 处理卡片点击事件
+    const handleCardClick = (link: string) => {
+        window.location.href = link; // 跳转到指定链接
+    };
+
+
     if (loading) return <IonContent><IonSpinner /></IonContent>;
     if (error) return <IonContent>Error: {error.message}</IonContent>;
 
@@ -53,7 +70,7 @@ const Tab1: React.FC = () => {
                 </IonToolbar>
             </IonHeader>
             <IonContent>
-                <IonGrid style={{'max-width':'1600px'}}>
+                <IonGrid style={{ 'max-width': '1600px' }}>
                     <IonRow>
                         <IonCol size="12" size-md="4">
                             <IonSelect placeholder="Select Sort Order" value={sort} onIonChange={handleSortChange} style={{ marginBottom: '16px' }}>
@@ -80,7 +97,7 @@ const Tab1: React.FC = () => {
                         {items.length > 0 ? (
                             items.map((item: { title: string; author: string; time: string; link: string; image: string; source: string; summary: string }) => (
                                 <IonCol size="12" size-md="4" key={item.link} style={{ marginBottom: '16px' }}>
-                                    <IonCard style={{ height: '400px' }}>
+                                    <IonCard style={{ cursor: 'pointer',height: '400px'}} onClick={() => handleCardClick(item.link)}>
                                         <IonImg src={item.image} alt={item.title} className="card-image" />
                                         <IonCardHeader>
                                             <IonCardTitle>{item.title}</IonCardTitle>

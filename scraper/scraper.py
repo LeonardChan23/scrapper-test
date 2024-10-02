@@ -2,11 +2,14 @@ import requests
 import time
 import argparse
 import re
+import cloudscraper
 from datetime import datetime
 from xml.etree import ElementTree as ET
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from urllib.parse import urljoin
 # import tensorflow
 # from transformers import pipeline
@@ -166,7 +169,7 @@ def fetch_protocol_posts(url, site):
             collection.insert_one(postInfo)
             imageCount += 1
             #测试专用 只爬十篇文章
-            if imageCount == 10:
+            if imageCount == 10 and args.test:
                 break
             
 
@@ -258,11 +261,158 @@ def fetch_ethereum_posts(url):
         print(postInfo)
         #测试专用 只爬十篇文章
         count += 1
-        if count == 10:
+        if count == 10 and args.test:
             break
 
 def fetch_coinbase_posts(url):
+    max_time_doc = collection.find_one(
+        {'source': 'Coinbase'},  # 查询条件
+        sort=[('time', -1)]  # 按 time 字段降序排序
+    )
+
+    chrome_options = Options()
+    chrome_options.add_argument("--lang=en")  # 设置语言为英语
+    # chrome_options.add_argument("--headless")  # 无头模式
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+
+    # 创建 WebDriver
+    driver = webdriver.Chrome(options=chrome_options)
+
+    # 访问页面
+    driver.get(url)
+
+    time.sleep(3)
+
+    span_element = driver.find_element(By.XPATH, "//span[text()='Show more']")
+    button_element = span_element
+    for _ in range(3):  # 向上查找两次
+        button_element = button_element.find_element(By.XPATH, "..")
+    count = 0
+    while True:
+        count += 20
+        imageElement = driver.find_element(By.CSS_SELECTOR,".card-article-image:last-of-type")
+        cardElement = imageElement
+        for _ in range(5):  # 向上查找三次
+            cardElement = cardElement.find_element(By.XPATH, "..")
+        date = cardElement.find_element(By.CSS_SELECTOR,"p[color='foregroundMuted']:first-of-type").text
+        print(date)
+        if date:
+            # 转换为日期格式
+            timeFormat = '%B %d, %Y'  # 指定格式
+            # 定义正则表达式，匹配日期格式
+            pattern = re.compile(r'(^\w+ \d{1,2},? \d{4}),?$')
+            date = pattern.match(date).group(1)
+            dateObj = datetime.strptime(date, timeFormat)
+        if max_time_doc:
+                max_time = max_time_doc['time']  # 提取最大 time 值
+                if max_time >= dateObj:
+                    break
+        try:
+            #只获取前40个 不然太慢了
+            if count == 40 and args.test:
+                break
+            driver.execute_script("arguments[0].scrollIntoView(); window.scrollBy(0, -200);", span_element)
+            button_element.click()
+            span_element = driver.find_element(By.XPATH, "//span[text()='Show more']")
+            button_element = span_element
+            for _ in range(3):  # 向上查找两次
+                button_element = button_element.find_element(By.XPATH, "..")
+            time.sleep(2)
+        except Exception as e:
+            break
+        
+        # 查找所有具有 data-qa 属性的元素
+        elements = driver.find_elements(By.XPATH, "//a[@data-qa]")
+
+        # 定义正则表达式
+        pattern = re.compile(r'Wayfinding-Child\d+-CardImage')
+
+        # 过滤符合条件的元素
+        matching_elements = [elem for elem in elements if pattern.match(elem.get_attribute('data-qa'))]
+        for link_element in matching_elements:
+            link_target = link_element.get_property('href')
+            # 在新标签页中打开另一个 URL
+            driver.execute_script("window.open(arguments[0]);", link_target)
+
+            # 切换到新标签页
+            driver.switch_to.window(driver.window_handles[1])  # 切换到第二个标签页
+
+            # 等待页面加载
+            time.sleep(1)  # 根据需要调整等待时间
+
+            # 在新标签页中执行操作
+            title = driver.find_element(By.CSS_SELECTOR,"h1").text
+
+            author = driver.find_elements(By.CSS_SELECTOR,"p")[0].text.strip()
+            category = driver.find_elements(By.CSS_SELECTOR, "p")[1].text.strip()
+            timePosted = driver.find_elements(By.CSS_SELECTOR,"p")[2].text.strip()
+            elementCount = 0
+            while not author.startswith("By "):
+                elementCount += 1
+                author = driver.find_elements(By.CSS_SELECTOR,"p")[elementCount].text.strip()
+                category = driver.find_elements(By.CSS_SELECTOR, "p")[elementCount+1].text.strip()
+                timePosted = driver.find_elements(By.CSS_SELECTOR,"p")[elementCount+2].text.strip()
+            author = author.split(" ",1)[1]
+            if timePosted:
+                # 转换为日期格式
+                timeFormat = '%B %d, %Y'  # 指定格式
+                # 定义正则表达式，匹配日期格式
+                timePosted=timePosted.split(" ",1)[1]
+                print(timePosted)
+                dateObj = datetime.strptime(timePosted, timeFormat)
+            if max_time_doc:
+                max_time = max_time_doc['time']  # 提取最大 time 值
+                if max_time >= dateObj:
+                    break
+            image_element = driver.find_elements(By.CSS_SELECTOR,"img")[1]
+            image = image_element.get_attribute('src')
+
+            postInfo = {
+                'title':title,
+                'author':author,
+                'time': date,
+                'link': link_target,
+                'category': category,
+                'image': image,
+                'source': 'Coinbase'
+            }   
+
+            content = driver.find_element(By.CSS_SELECTOR,"[id='article_introduction']").text.strip()
+
+            postInfo['summary']=get_blog_summary(content)
+
+            collection.insert_one(postInfo)
+
+            # 关闭新标签页
+            driver.close()
+            # 切换回初始标签页
+            driver.switch_to.window(driver.window_handles[0])
+            
+            
+    # cookies = driver.get_cookies
+
+
+    # scraper = cloudscraper.create_scraper()  # returns a CloudScraper instance
+    # # Or: scraper = cloudscraper.CloudScraper()  # CloudScraper inherits from requests.Session
+
+    # siteXml = scraper.get("https://www.coinbase.com/blog/sitemaps.xml").text
+
+    # root = ET.fromstring(siteXml)
+    # response = requests.get(url)
+    # print(response.text)
+    # return
+    # namespaces = {}
+    # for elem in root.findall('.//*'):
+    #     if '}' in elem.tag:
+    #         ns = elem.tag.split('}')[0].strip('{')
+    #         namespaces[ns] = ns  # 将命名空间添加到字典中
+    # loc_links = []
+    # 查找 loc 元素，使用提取的命名空间
     
+    
+    
+
     return True
 
 def get_blog_summary(content):
@@ -295,9 +445,14 @@ if __name__ == '__main__':
     # 添加 --model 参数，指定类型为字符串
     parser.add_argument('--model', type=str, choices=['NLP', 'LLM'], required=True,
                         help='Choose between NLP or LLM')
-    
+    parser.add_argument('--test', action='store_true', required=False,
+                        help='enable test mode')
+    parser.add_argument('--apikey', type=str, required= False,
+                        help='provide apikey')
     # 解析参数
     args = parser.parse_args()
+    if args.model == 'LLM' and not args.apikey:
+        parser.error("--apikey is required when --model is 'LLM'")
     if args.model == 'NLP':
         from transformers import T5Tokenizer, TFT5ForConditionalGeneration
         model_name = 't5-base' 
@@ -314,7 +469,7 @@ if __name__ == '__main__':
         print('Please set AI model type!')
         exit 
 
-    # fetch_protocol_posts(protocolUrl,protocolSite)
+    fetch_protocol_posts(protocolUrl,protocolSite)
     fetch_ethereum_posts(ethereumUrl)
     fetch_coinbase_posts(coinbaseUrl)
 

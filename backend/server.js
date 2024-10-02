@@ -4,6 +4,44 @@ const { ApolloServer, gql } = require('apollo-server-express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { DateTime } = require('graphql-scalars');
+const { exec } = require('child_process');
+
+// 定义要执行的 Bash 脚本路径
+const scriptPath = '../scraper.py';
+
+// 获取命令行参数（跳过前两个参数）
+const args = process.argv.slice(2);
+
+// 检查是否提供参数
+if (args.length === 0) {
+    console.error("请提供参数。");
+    process.exit(1);
+}
+
+// 将参数转换为字符串形式
+const pythonArgs = args.join(' ');
+
+// 定时调用 Bash 脚本的函数
+const callScript = () => {
+    exec(`python ${scriptPath} ${pythonArgs}`,(error, stdout, stderr) => {
+        if (error) {
+            console.error(`执行错误: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`错误输出: ${stderr}`);
+            return;
+        }
+        console.log(`脚本输出:\n${stdout}`);
+    });
+};
+
+// 设置定时调用，每隔 30min 执行一次
+const interval = 1800000; // 30 min
+setInterval(callScript, interval);
+
+// 立即调用一次
+//callScript();
 
 // const { typeDefs: scalarTypeDefs } = require('graphql-scalars');
  

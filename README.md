@@ -86,16 +86,18 @@ Follow the steps to intsall dependencies:
    ```
 ## Start
 #### Before start, make sure you have a running MongoDB server.
-To start the project, run this command in scraper folder:
+To start the project, run this command in scraper folder
+
+<strong>--test arg is stronglg recommended</strong> because of the performace of Selenium. A brand new initialization will cost more 1 hour (around 1500 selenium calls)...
 ```bash
 python scraper.py --model NLP/LLM --apikey YOUR_API_KEY
 ```
 Then run this command in backend folder:
 ```bash
-node server.js
+node server.js --model NLP/LLM --apikey YOUR_API_KEY
 ```
 
-By default, the GraphQL service will run on http://localhost:4000/graphql.
+By default, the GraphQL service will run on http://localhost:4000/graphql. The scraper will operate once every 30 minutes. Simply change the setting in [server.js](./backend/server.js) can change the inteval.
 
 ## Testing
 Since in initialization of scraper, about 4000 blogs will be sent to NLP/LLM for summarization, add --test when running scraper.py will only send 10 blogs from protocol.ai, 2 pages of blogs from Ethereum Foundation Blog and 2 scrolls of blogs from Coinbase Blog.

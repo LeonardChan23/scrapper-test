@@ -71,7 +71,7 @@ transformers==4.45.1
 trio==0.26.2
 trio-websocket==0.11.1
 typing_extensions==4.12.2
-urllib3==2.2.3
+urllib3==2.6.0
 websocket-client==1.8.0
 Werkzeug==3.0.4
 wheel==0.44.0
